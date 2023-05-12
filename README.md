@@ -2,131 +2,137 @@
 ## Aim
 To Implement Transfer Learning for CIFAR-10 dataset classification using VGG-19 architecture.
 ## Problem Statement and Dataset
-The given problem is to predict the google stock price based on time. For this we are provided with a dataset which contains features like Date, Opening Price, Highest Price, Lowest Price, Closing Price, Adjusted Closing Price, Volume Based on the given features, develop a RNN model to predict, the price of stocks in future
+The CIFAR-10 dataset consists of 60000 32x32 colour images in 10 classes, with 6000 images per class. There are 50000 training images and 10000 test images.
+The dataset is divided into five training batches and one test batch, each with 10000 images. The test batch contains exactly 1000 randomly-selected images from each class. The training batches contain the remaining images in random order, but some training batches may contain more images from one class than another. Between them, the training batches contain exactly 5000 images from each class.
+
+Here are the classes in the dataset, as well as 10 random images from each:
+
+![237177029-8d4d28a6-7df1-461a-b442-2723754c0e58](https://github.com/vidyaneela/Implementation-of-Transfer-Learning/assets/94169318/0c867e5a-02f9-4e55-b90e-0f50b649c456)
+
+VGG19 is a variant of the VGG model which in short consists of 19 layers (16 convolution layers, 3 Fully connected layer, 5 MaxPool layers and 1 SoftMax layer).
+Now we have use transfer learning with the help of VGG-19 architecture and use it to classify the CIFAR-10 Dataset
+
+
 ## DESIGN STEPS
 ### STEP 1:
-Import the necessary tensorflow modules
+
+Import tensorflow and preprocessing libraries
 
 ### STEP 2:
-Load the stock dataset
+
+Load CIFAR-10 Dataset & use Image Data Generator to increse the size of dataset
 
 ### STEP 3:
-Fit the model and then predict
+
+Import the VGG-19 as base model & add Dense layers to it
 
 ### STEP 4:
-Create a model with the desired number of neurons and one output neuron.
 
-### STEP 5:
-Follow the same steps to create the Test data. But make sure you combine the training data with the test data.
+Compile and fit the model
 
-### STEP 6:
-Make Predictions and plot the graph with the Actual and Predicted values.
+### Step 5:
+
+Predict for custom inputs using this model
 
 ## PROGRAM
 ```
 Developed by : Vidya Neela M
 Reg no : 212221230120
 ```
+Libraries
 ```
-import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
-from keras import layers
-from tensorflow.keras import models
-from keras.models import Sequential
-from tensorflow.keras import layers
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report,confusion_matrix
 
-df = pd.read_csv("/content/trainset.csv")
+from keras import Sequential
+from keras.layers import Flatten,Dense,BatchNormalization,Activation,Dropout
+from tensorflow.keras import utils
 
-df.columns
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-df.head()
+from keras.datasets import cifar10
+from tensorflow.keras.applications import VGG19
+Load Dataset & Increse the size of it
 
-train_set = df.iloc[:,1:2].values
+(x_train,y_train),(x_test,y_test)=cifar10.load_data()
 
-type(train_set)
+train_generator = ImageDataGenerator(rotation_range=2,
+                                     horizontal_flip=True,
+                                     rescale = 1.0/255.0,
+                                     zoom_range = 0.1
+                                     )
 
-train_set.shape
+test_generator = ImageDataGenerator(rotation_range=2,
+                                     horizontal_flip=True,
+                                     rescale = 1.0/255.0,
+                                     zoom_range = 0.1
+                                     )
+```
 
-sc = MinMaxScaler(feature_range=(0,1))
-training_set_scaled = sc.fit_transform(train_set)
-
-training_set_scaled.shape
-
-X_train_array = []
-y_train_array = []
-for i in range(60, 1259):
-  X_train_array.append(training_set_scaled[i-60:i,0])
-  y_train_array.append(training_set_scaled[i,0])
-X_train, y_train = np.array(X_train_array), np.array(y_train_array)
-X_train1 = X_train.reshape((X_train.shape[0], X_train.shape[1],1))
-
-X_train.shape
-
-length = 60
-n_features = 1
+One Hot Encoding Outputs
+```
+y_train_onehot = utils.to_categorical(y_train,10)
+y_test_onehot = utils.to_categorical(y_test,10)
+Import VGG-19 model & add dense layers
+base_model = VGG19(include_top=False, weights = "imagenet",
+                   input_shape = (32,32,3))
 
 model = Sequential()
-model.add(layers.SimpleRNN(50,input_shape=(60,1)))
-
-model.add(layers.Dense(1))
-
-model.compile(optimizer='adam', loss='mse',metrics ='accuracy')
-
+model.add(base_model)
+model.add(Flatten())
+model.add(Dense(1024,activation=("relu")))
+model.add(Dense(512,activation=("relu")))
+model.add(Dense(256,activation=("relu")))
+model.add(Dense(128,activation=("relu")))
+model.add(Dense(10,activation=("relu")))
 model.summary()
+model.compile(loss="categorical_crossentropy",
+              optimizer="adam",
+              metrics="accuracy")
 
-model.fit(X_train1,y_train,epochs=100, batch_size=32)
-
-dataset_test = pd.read_csv('testset.csv')
-
-test_set = dataset_test.iloc[:,1:2].values
-
-test_set.shape
-
-dataset_total = pd.concat((dataset_train['Open'],dataset_test['Open']),axis=0)
-
-inputs = dataset_total.values
-inputs = inputs.reshape(-1,1)
-inputs_scaled=sc.transform(inputs)
-X_test = []
-y_test = []
-for i in range(60,1384):
-  X_test.append(inputs_scaled[i-60:i,0])
-  y_test.append(inputs_scaled[i,0])
-X_test = np.array(X_test)
-X_test = np.reshape(X_test,(X_test.shape[0], X_test.shape[1],1))
-
-X_test.shape
-predicted_stock_price_scaled = model.predict(X_test)
-predicted_stock_price = sc.inverse_transform(predicted_stock_price_scaled)
-
-plt.plot(np.arange(0,1384),inputs, color='red', label = 'Test(Real) Google stock price')
-plt.plot(np.arange(60,1384),predicted_stock_price, color='blue', 
-		label = 'Predicted Google stock price')
-plt.title('Google Stock Price Prediction')
-plt.xlabel('Time')
-plt.ylabel('Google Stock Price')
-plt.legend()
-plt.show()
-from sklearn.metrics import mean_squared_error as mse
-mse(y_test,predicted_stock_price)
+batch_size = 75
+epoch = 25
+train_image_generator  = train_generator.flow(x_train,y_train_onehot,
+                                         batch_size = batch_size)		 
+test_image_generator  = test_generator.flow(x_test,y_test_onehot,
+                                         batch_size = batch_size)		 
+model.fit(train_image_generator,epochs=epoch,
+          validation_data = test_image_generator)
 ```
 
+Metrics
+```
+metrics = pd.DataFrame(model.history.history)
+
+metrics[['loss','val_loss']].plot()
+
+metrics[['accuracy','val_accuracy']].plot()
+
+x_test_predictions = np.argmax(model.predict(test_image_generator), axis=1)
+
+print(confusion_matrix(y_test,x_test_predictions))
+
+print(classification_report(y_test,x_test_predictions))
+```
 
 ## OUTPUT
-### True Stock Price, Predicted Stock Price vs time
+### Training Loss, Validation Loss Vs Iteration Plot:
 
-![image](https://user-images.githubusercontent.com/94169318/236890916-70569610-abe3-4c8a-a752-61815fc492ba.png)
+Training Loss, Validation Loss Vs Iteration             | Accuracy, Validation Accuracy Vs Iteration                   |               
+:------------------------------------------------------:| :-----------------------------------------------------------:|
+| | |
 
 ### Classification Report
-Include Classification Report here
-</br>
-</br>
-</br>
-### Mean Square Error:
 
-![image](https://user-images.githubusercontent.com/94169318/236891136-6382c3f2-dcc1-4cab-8fc3-7b2588b56cfe.png)
+![237178944-2202b96d-0ca1-428d-ad29-ea860afe10ee](https://github.com/vidyaneela/Implementation-of-Transfer-Learning/assets/94169318/d0c88564-2cf8-4d8e-98af-ba12816aa196)
 
-## RESULT
-A Recurrent Neural Network model for stock price prediction is developed.
+<img width="425" alt="237178971-a557ae2b-59a9-4973-9af4-436e72f0aad3" src="https://github.com/vidyaneela/Implementation-of-Transfer-Learning/assets/94169318/ec522142-6e6e-4506-95e5-538ce8a1c574">
+
+### Confusion Matrix
+
+![237178903-907e6030-e54b-4cc8-ba20-fab0c74f2d6a](https://github.com/vidyaneela/Implementation-of-Transfer-Learning/assets/94169318/88a20d20-1f76-4a80-9201-77e870dc7c5b)
+
+## RESULT:
+Thus, transfer Learning for CIFAR-10 dataset classification using VGG-19 architecture is successfully implemented.
